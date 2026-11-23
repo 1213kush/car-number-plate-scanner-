@@ -24,8 +24,7 @@ class ScanController {
       permanentImagePath,
     );
 
-    print('OCR Text: $text');
-    print('Vehicle Number: $vehicleNumber');
+    // Scan completed successfully
   }
 
   void dispose() {

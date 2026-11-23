@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:math';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'home_screen.dart';
 
@@ -12,138 +12,149 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen>
     with TickerProviderStateMixin {
-  // ── Controllers ───────────────────────────────────────────────────────────
-  late final AnimationController _logoCtrl;
-  late final AnimationController _textCtrl;
-  late final AnimationController _ringCtrl;
-  late final AnimationController _particleCtrl;
-  late final AnimationController _progressCtrl;
+  // --- Controllers ---
+  late AnimationController _logoController;
+  late AnimationController _contentController;
+  late AnimationController _scanController;
+  late AnimationController _pulseController;
+  late AnimationController _progressController;
 
-  // ── Logo animations ───────────────────────────────────────────────────────
-  late final Animation<double> _logoScale;
-  late final Animation<double> _logoFade;
-  late final Animation<double> _logoRotate;
+  // --- Logo animations ---
+  late Animation<double> _logoScale;
+  late Animation<double> _logoOpacity;
+  late Animation<double> _logoRotate;
 
-  // ── Text animations ───────────────────────────────────────────────────────
-  late final Animation<double> _titleFade;
-  late final Animation<Offset> _titleSlide;
-  late final Animation<double> _taglineFade;
+  // --- Content animations ---
+  late Animation<double> _titleOpacity;
+  late Animation<Offset> _titleSlide;
+  late Animation<double> _badgeOpacity;
+  late Animation<Offset> _badgeSlide;
+  late Animation<double> _footerOpacity;
 
-  // ── Ring pulse ────────────────────────────────────────────────────────────
-  late final Animation<double> _ringScale;
-  late final Animation<double> _ringOpacity;
+  // --- Scan line ---
+  late Animation<double> _scanPosition;
 
-  // ── Progress ──────────────────────────────────────────────────────────────
-  late final Animation<double> _progress;
+  // --- Pulse ring ---
+  late Animation<double> _pulseScale;
+  late Animation<double> _pulseOpacity;
 
-  // ── Status text ───────────────────────────────────────────────────────────
-  final _statusNotifier = ValueNotifier<String>('Initializing...');
-  final _statusMessages = [
-    'Initializing scanner...',
-    'Loading OCR engine...',
-    'Calibrating detector...',
-    'Ready!',
-  ];
+  // --- Progress ---
+  late Animation<double> _progressValue;
 
-  // ── Particles ─────────────────────────────────────────────────────────────
-  final _particles = <_Particle>[];
-  final _rng = Random();
+  static const _cyan = Color(0xFF00E5FF);
+  static const _cyanDim = Color(0x3300E5FF);
+  static const _cyanGlow = Color(0x6600E5FF);
+  static const _white = Colors.white;
 
   @override
   void initState() {
     super.initState();
-    _buildParticles();
     _setupAnimations();
-    _startStatusCycle();
-    _navigate();
-  }
-
-  void _buildParticles() {
-    for (int i = 0; i < 18; i++) {
-      _particles.add(_Particle(
-        x: _rng.nextDouble(),
-        y: _rng.nextDouble(),
-        radius: _rng.nextDouble() * 2.5 + 0.8,
-        speed: _rng.nextDouble() * 0.4 + 0.2,
-        phase: _rng.nextDouble() * pi * 2,
-      ));
-    }
+    _scheduleNavigation();
   }
 
   void _setupAnimations() {
-    // Logo: scale + fade + slight rotate
-    _logoCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 1000));
-    _logoScale = Tween<double>(begin: 0.4, end: 1.0).animate(
-        CurvedAnimation(parent: _logoCtrl, curve: Curves.elasticOut));
-    _logoFade = Tween<double>(begin: 0.0, end: 1.0).animate(
-        CurvedAnimation(parent: _logoCtrl,
-            curve: const Interval(0.0, 0.5, curve: Curves.easeIn)));
-    _logoRotate = Tween<double>(begin: -0.15, end: 0.0).animate(
-        CurvedAnimation(parent: _logoCtrl, curve: Curves.easeOutCubic));
+    // Logo: scale + fade + subtle rotate
+    _logoController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
+    _logoScale = CurvedAnimation(
+      parent: _logoController,
+      curve: Curves.easeOutBack,
+    ).drive(Tween(begin: 0.4, end: 1.0));
+    _logoOpacity = CurvedAnimation(
+      parent: _logoController,
+      curve: const Interval(0.0, 0.6, curve: Curves.easeIn),
+    ).drive(Tween(begin: 0.0, end: 1.0));
+    _logoRotate = CurvedAnimation(
+      parent: _logoController,
+      curve: Curves.easeOutCubic,
+    ).drive(Tween(begin: -0.08, end: 0.0));
 
-    // Ring pulse (loops)
-    _ringCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 1800))
-      ..repeat();
-    _ringScale = Tween<double>(begin: 1.0, end: 1.5).animate(
-        CurvedAnimation(parent: _ringCtrl, curve: Curves.easeOut));
-    _ringOpacity = Tween<double>(begin: 0.5, end: 0.0).animate(
-        CurvedAnimation(parent: _ringCtrl, curve: Curves.easeOut));
+    // Content: staggered fade + slide
+    _contentController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
+    _titleOpacity = CurvedAnimation(
+      parent: _contentController,
+      curve: const Interval(0.0, 0.7, curve: Curves.easeOut),
+    ).drive(Tween(begin: 0.0, end: 1.0));
+    _titleSlide = CurvedAnimation(
+      parent: _contentController,
+      curve: const Interval(0.0, 0.7, curve: Curves.easeOutCubic),
+    ).drive(Tween(begin: const Offset(0, 0.3), end: Offset.zero));
+    _badgeOpacity = CurvedAnimation(
+      parent: _contentController,
+      curve: const Interval(0.3, 1.0, curve: Curves.easeOut),
+    ).drive(Tween(begin: 0.0, end: 1.0));
+    _badgeSlide = CurvedAnimation(
+      parent: _contentController,
+      curve: const Interval(0.3, 1.0, curve: Curves.easeOutCubic),
+    ).drive(Tween(begin: const Offset(0, 0.4), end: Offset.zero));
+    _footerOpacity = CurvedAnimation(
+      parent: _contentController,
+      curve: const Interval(0.6, 1.0, curve: Curves.easeOut),
+    ).drive(Tween(begin: 0.0, end: 1.0));
 
-    // Particles (loops)
-    _particleCtrl = AnimationController(
-        vsync: this, duration: const Duration(seconds: 4))
-      ..repeat();
+    // Scan line sweeps over logo
+    _scanController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1600),
+    );
+    _scanPosition = CurvedAnimation(
+      parent: _scanController,
+      curve: Curves.easeInOut,
+    ).drive(Tween(begin: 0.0, end: 1.0));
 
-    // Text slides up
-    _textCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 700));
-    _titleFade = Tween<double>(begin: 0.0, end: 1.0).animate(
-        CurvedAnimation(parent: _textCtrl, curve: Curves.easeIn));
-    _titleSlide =
-        Tween<Offset>(begin: const Offset(0, 0.4), end: Offset.zero).animate(
-            CurvedAnimation(parent: _textCtrl, curve: Curves.easeOutCubic));
-    _taglineFade = Tween<double>(begin: 0.0, end: 1.0).animate(
-        CurvedAnimation(
-            parent: _textCtrl,
-            curve: const Interval(0.4, 1.0, curve: Curves.easeIn)));
+    // Pulse ring breathes continuously
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1800),
+    )..repeat(reverse: true);
+    _pulseScale = CurvedAnimation(
+      parent: _pulseController,
+      curve: Curves.easeInOut,
+    ).drive(Tween(begin: 1.0, end: 1.18));
+    _pulseOpacity = CurvedAnimation(
+      parent: _pulseController,
+      curve: Curves.easeInOut,
+    ).drive(Tween(begin: 0.5, end: 0.15));
 
-    // Progress bar over 3s
-    _progressCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 3000));
-    _progress = Tween<double>(begin: 0.0, end: 1.0).animate(
-        CurvedAnimation(parent: _progressCtrl, curve: Curves.easeInOut));
+    // Progress bar fills over 2 seconds
+    _progressController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2000),
+    );
+    _progressValue = CurvedAnimation(
+      parent: _progressController,
+      curve: Curves.easeInOut,
+    ).drive(Tween(begin: 0.0, end: 1.0));
 
-    // Start sequence
-    _logoCtrl.forward().then((_) => _textCtrl.forward());
-    _progressCtrl.forward();
-  }
-
-  void _startStatusCycle() {
-    int idx = 0;
-    Timer.periodic(const Duration(milliseconds: 750), (t) {
-      if (!mounted) { t.cancel(); return; }
-      if (idx < _statusMessages.length) {
-        _statusNotifier.value = _statusMessages[idx++];
-      } else {
-        t.cancel();
-      }
+    // Sequence: logo → scan → content + progress
+    _logoController.forward().then((_) {
+      _scanController.forward().then((_) {
+        _contentController.forward();
+        _progressController.forward();
+      });
     });
   }
 
-  void _navigate() {
+  void _scheduleNavigation() {
     Timer(const Duration(milliseconds: 3200), () {
       if (!mounted) return;
       Navigator.pushReplacement(
         context,
         PageRouteBuilder(
-          transitionDuration: const Duration(milliseconds: 700),
+          transitionDuration: const Duration(milliseconds: 600),
           pageBuilder: (_, __, ___) => const HomeScreen(),
-          transitionsBuilder: (_, anim, __, child) => FadeTransition(
-            opacity: CurvedAnimation(parent: anim, curve: Curves.easeIn),
-            child: child,
-          ),
+          transitionsBuilder: (_, animation, __, child) {
+            return FadeTransition(
+              opacity: CurvedAnimation(parent: animation, curve: Curves.easeIn),
+              child: child,
+            );
+          },
         ),
       );
     });
@@ -151,201 +162,230 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   void dispose() {
-    _logoCtrl.dispose();
-    _textCtrl.dispose();
-    _ringCtrl.dispose();
-    _particleCtrl.dispose();
-    _progressCtrl.dispose();
-    _statusNotifier.dispose();
+    _logoController.dispose();
+    _contentController.dispose();
+    _scanController.dispose();
+    _pulseController.dispose();
+    _progressController.dispose();
     super.dispose();
   }
 
-  // ── Build ─────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
-
     return Scaffold(
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color(0xFF060818),
-              Color(0xFF0D1B2A),
-              Color(0xFF0A1628),
-            ],
+      backgroundColor: const Color(0xFF080E14),
+      body: Stack(
+        children: [
+          // ── Background mesh gradient ──
+          _buildBackground(),
+
+          // ── Main content ──
+          SafeArea(
+            child: Column(
+              children: [
+                const Spacer(flex: 3),
+                _buildLogo(),
+                const SizedBox(height: 40),
+                _buildTitle(),
+                const SizedBox(height: 14),
+                _buildBadge(),
+                const Spacer(flex: 3),
+                _buildFooter(),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─────────────────────────────────────────
+  //  Background
+  // ─────────────────────────────────────────
+  Widget _buildBackground() {
+    return Stack(
+      children: [
+        // Deep base
+        Container(
+          decoration: const BoxDecoration(
+            gradient: RadialGradient(
+              center: Alignment(0, -0.3),
+              radius: 1.4,
+              colors: [
+                Color(0xFF0D1E2E),
+                Color(0xFF080E14),
+              ],
+            ),
           ),
         ),
-        child: Stack(
-          children: [
-            // ── Floating particles ───────────────────────────────────────
-            AnimatedBuilder(
-              animation: _particleCtrl,
-              builder: (_, __) => CustomPaint(
-                size: size,
-                painter: _ParticlePainter(
-                    _particles, _particleCtrl.value),
+        // Subtle top-left accent glow
+        Positioned(
+          top: -120,
+          left: -120,
+          child: Container(
+            width: 400,
+            height: 400,
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: RadialGradient(
+                colors: [Color(0x1500E5FF), Color(0x00000000)],
               ),
             ),
+          ),
+        ),
+        // Bottom-right accent glow
+        Positioned(
+          bottom: -100,
+          right: -100,
+          child: Container(
+            width: 320,
+            height: 320,
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: RadialGradient(
+                colors: [Color(0x0D00E5FF), Color(0x00000000)],
+              ),
+            ),
+          ),
+        ),
+        // Fine grid lines (purely decorative)
+        CustomPaint(
+          size: Size.infinite,
+          painter: _GridPainter(),
+        ),
+      ],
+    );
+  }
 
-            // ── Ambient glow behind logo ─────────────────────────────────
-            Positioned(
-              left: size.width / 2 - 110,
-              top: size.height * 0.28,
-              child: AnimatedBuilder(
-                animation: _logoCtrl,
-                builder: (_, __) => Opacity(
-                  opacity: _logoFade.value * 0.35,
-                  child: Container(
-                    width: 220,
-                    height: 220,
-                    decoration: const BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: RadialGradient(
-                        colors: [Color(0xFF1E88E5), Colors.transparent],
+  // ─────────────────────────────────────────
+  //  Logo
+  // ─────────────────────────────────────────
+  Widget _buildLogo() {
+    const logoSize = 112.0;
+    return AnimatedBuilder(
+      animation: Listenable.merge([
+        _logoController,
+        _scanController,
+        _pulseController,
+      ]),
+      builder: (context, _) {
+        return Transform.rotate(
+          angle: _logoRotate.value,
+          child: Transform.scale(
+            scale: _logoScale.value,
+            child: Opacity(
+              opacity: _logoOpacity.value,
+              child: SizedBox(
+                width: logoSize + 60,
+                height: logoSize + 60,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    // Outer pulse ring
+                    Transform.scale(
+                      scale: _pulseScale.value,
+                      child: Container(
+                        width: logoSize + 40,
+                        height: logoSize + 40,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: _cyan.withOpacity(_pulseOpacity.value),
+                            width: 1.5,
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                ),
-              ),
-            ),
 
-            // ── Main content ─────────────────────────────────────────────
-            SafeArea(
-              child: Column(
-                children: [
-                  const Spacer(flex: 3),
+                    // Dashed orbit ring (static)
+                    CustomPaint(
+                      size: const Size(logoSize + 24, logoSize + 24),
+                      painter: _DashedCirclePainter(
+                        color: _cyanDim,
+                        dashCount: 24,
+                      ),
+                    ),
 
-                  // ── Logo + ring ────────────────────────────────────────
-                  AnimatedBuilder(
-                    animation: Listenable.merge(
-                        [_logoCtrl, _ringCtrl]),
-                    builder: (_, __) {
-                      return SizedBox(
-                        width: 160,
-                        height: 160,
+                    // Glass disc
+                    Container(
+                      width: logoSize,
+                      height: logoSize,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: const LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            Color(0xFF162638),
+                            Color(0xFF0C1A28),
+                          ],
+                        ),
+                        border: Border.all(
+                          color: const Color(0x5500E5FF),
+                          width: 1.5,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: _cyanGlow,
+                            blurRadius: 36,
+                            spreadRadius: 2,
+                          ),
+                          const BoxShadow(
+                            color: Color(0x40000000),
+                            blurRadius: 20,
+                            offset: Offset(0, 8),
+                          ),
+                        ],
+                      ),
+                      child: ClipOval(
                         child: Stack(
                           alignment: Alignment.center,
                           children: [
-                            // Pulsing outer ring
-                            Opacity(
-                              opacity: _ringOpacity.value,
-                              child: Transform.scale(
-                                scale: _ringScale.value,
-                                child: Container(
-                                  width: 130,
-                                  height: 130,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: const Color(0xFF1E88E5),
-                                      width: 1.5,
-                                    ),
-                                  ),
-                                ),
-                              ),
+                            // Icon
+                            const Icon(
+                              Icons.directions_car_filled_rounded,
+                              size: 48,
+                              color: _cyan,
                             ),
-                            // Logo container
-                            Opacity(
-                              opacity: _logoFade.value,
-                              child: Transform.scale(
-                                scale: _logoScale.value,
-                                child: Transform.rotate(
-                                  angle: _logoRotate.value,
-                                  child: Container(
-                                    width: 110,
-                                    height: 110,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: const Color(0xFF0D1B2A),
-                                      border: Border.all(
-                                        color: const Color(0xFF1E88E5),
-                                        width: 2,
-                                      ),
-                                      boxShadow: const [
-                                        BoxShadow(
-                                          color: Color(0x551E88E5),
-                                          blurRadius: 30,
-                                          spreadRadius: 8,
-                                        ),
+
+                            // Scan line sweep
+                            Positioned(
+                              top: _scanPosition.value * logoSize,
+                              left: 0,
+                              right: 0,
+                              child: Opacity(
+                                opacity: (1.0 - (_scanPosition.value - 0.5).abs() * 2).clamp(0.0, 1.0),
+                                child: Container(
+                                  height: 2,
+                                  decoration: const BoxDecoration(
+                                    gradient: LinearGradient(
+                                      colors: [
+                                        Colors.transparent,
+                                        _cyan,
+                                        Colors.transparent,
                                       ],
                                     ),
-                                    child: const Icon(
-                                      Icons.directions_car_rounded,
-                                      size: 52,
-                                      color: Color(0xFF1E88E5),
-                                    ),
                                   ),
                                 ),
                               ),
                             ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
 
-                  const SizedBox(height: 40),
-
-                  // ── Title & tagline ────────────────────────────────────
-                  AnimatedBuilder(
-                    animation: _textCtrl,
-                    builder: (_, __) => FadeTransition(
-                      opacity: _titleFade,
-                      child: SlideTransition(
-                        position: _titleSlide,
-                        child: Column(
-                          children: [
-                            // Brand name
-                            RichText(
-                              text: const TextSpan(
-                                children: [
-                                  TextSpan(
-                                    text: 'VEHICLE',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 30,
-                                      fontWeight: FontWeight.w900,
-                                      letterSpacing: 5,
-                                    ),
+                            // Gloss sheen
+                            Positioned(
+                              top: 0,
+                              left: 0,
+                              right: 0,
+                              child: Container(
+                                height: logoSize * 0.4,
+                                decoration: const BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topCenter,
+                                    end: Alignment.bottomCenter,
+                                    colors: [
+                                      Color(0x1AFFFFFF),
+                                      Colors.transparent,
+                                    ],
                                   ),
-                                  TextSpan(
-                                    text: ' OCR',
-                                    style: TextStyle(
-                                      color: Color(0xFF1E88E5),
-                                      fontSize: 30,
-                                      fontWeight: FontWeight.w900,
-                                      letterSpacing: 5,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            // Divider line
-                            Container(
-                              width: 48,
-                              height: 2,
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF1E88E5),
-                                borderRadius: BorderRadius.circular(2),
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            // Tagline
-                            FadeTransition(
-                              opacity: _taglineFade,
-                              child: const Text(
-                                'AI-Powered License Plate Recognition',
-                                style: TextStyle(
-                                  color: Color(0xFF8099B4),
-                                  fontSize: 13,
-                                  letterSpacing: 0.6,
-                                  fontWeight: FontWeight.w400,
                                 ),
                               ),
                             ),
@@ -353,114 +393,257 @@ class _SplashScreenState extends State<SplashScreen>
                         ),
                       ),
                     ),
-                  ),
-
-                  const Spacer(flex: 3),
-
-                  // ── Progress + status ──────────────────────────────────
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 48)
-                        .copyWith(bottom: 48),
-                    child: Column(
-                      children: [
-                        // Status text
-                        ValueListenableBuilder<String>(
-                          valueListenable: _statusNotifier,
-                          builder: (_, status, __) => AnimatedSwitcher(
-                            duration: const Duration(milliseconds: 300),
-                            child: Text(
-                              status,
-                              key: ValueKey(status),
-                              style: const TextStyle(
-                                color: Color(0xFF4A6080),
-                                fontSize: 12,
-                                letterSpacing: 0.8,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-                        // Progress bar
-                        AnimatedBuilder(
-                          animation: _progress,
-                          builder: (_, __) => ClipRRect(
-                            borderRadius: BorderRadius.circular(4),
-                            child: LinearProgressIndicator(
-                              value: _progress.value,
-                              minHeight: 3,
-                              backgroundColor: const Color(0xFF1A2A3A),
-                              valueColor: const AlwaysStoppedAnimation<Color>(
-                                  Color(0xFF1E88E5)),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 28),
-                        // Version badge
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 5),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF0D1B2A),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                                color: const Color(0xFF1A2A3A)),
-                          ),
-                          child: const Text(
-                            'v1.0.0  •  Powered by ML Kit',
-                            style: TextStyle(
-                              color: Color(0xFF3A5068),
-                              fontSize: 11,
-                              letterSpacing: 0.5,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-          ],
-        ),
+          ),
+        );
+      },
+    );
+  }
+
+  // ─────────────────────────────────────────
+  //  Title
+  // ─────────────────────────────────────────
+  Widget _buildTitle() {
+    return AnimatedBuilder(
+      animation: _contentController,
+      builder: (context, _) {
+        return FadeTransition(
+          opacity: _titleOpacity,
+          child: SlideTransition(
+            position: _titleSlide,
+            child: Column(
+              children: [
+                // Wordmark
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: [
+                    Text(
+                      'VEHICLE',
+                      style: TextStyle(
+                        color: _white.withOpacity(0.95),
+                        fontSize: 28,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 6,
+                        height: 1,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: _cyanDim,
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: _cyanGlow, width: 1),
+                      ),
+                      child: const Text(
+                        'OCR',
+                        style: TextStyle(
+                          color: _cyan,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 3,
+                          height: 1,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 12),
+
+                // Tagline
+                Text(
+                  'AI License Plate Recognition',
+                  style: TextStyle(
+                    color: _white.withOpacity(0.42),
+                    fontSize: 12.5,
+                    letterSpacing: 2.4,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // ─────────────────────────────────────────
+  //  Badge chips
+  // ─────────────────────────────────────────
+  Widget _buildBadge() {
+    return AnimatedBuilder(
+      animation: _contentController,
+      builder: (context, _) {
+        return FadeTransition(
+          opacity: _badgeOpacity,
+          child: SlideTransition(
+            position: _badgeSlide,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _chip(Icons.flash_on_rounded, 'Real-time'),
+                const SizedBox(width: 10),
+                _chip(Icons.security_rounded, 'Secure'),
+                const SizedBox(width: 10),
+                _chip(Icons.layers_rounded, 'ML Kit'),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _chip(IconData icon, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0D1E2E),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0x2200E5FF), width: 1),
       ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: _cyan.withOpacity(0.7)),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: TextStyle(
+              color: _white.withOpacity(0.55),
+              fontSize: 11,
+              letterSpacing: 0.5,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─────────────────────────────────────────
+  //  Footer: progress + version
+  // ─────────────────────────────────────────
+  Widget _buildFooter() {
+    return AnimatedBuilder(
+      animation: Listenable.merge([_contentController, _progressController]),
+      builder: (context, _) {
+        return FadeTransition(
+          opacity: _footerOpacity,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(40, 0, 40, 40),
+            child: Column(
+              children: [
+                // Progress track
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(2),
+                  child: SizedBox(
+                    height: 2,
+                    child: LinearProgressIndicator(
+                      value: _progressValue.value,
+                      backgroundColor: const Color(0x1AFFFFFF),
+                      valueColor: const AlwaysStoppedAnimation<Color>(_cyan),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+
+                // Version row
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Version 1.0.0',
+                      style: TextStyle(
+                        color: _white.withOpacity(0.22),
+                        fontSize: 10.5,
+                        letterSpacing: 0.6,
+                      ),
+                    ),
+                    Text(
+                      'Powered by Google ML Kit',
+                      style: TextStyle(
+                        color: _white.withOpacity(0.22),
+                        fontSize: 10.5,
+                        letterSpacing: 0.6,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }
 
-// ── Particle data model ───────────────────────────────────────────────────────
-class _Particle {
-  final double x, y, radius, speed, phase;
-  const _Particle({
-    required this.x,
-    required this.y,
-    required this.radius,
-    required this.speed,
-    required this.phase,
-  });
+// ─────────────────────────────────────────
+//  Custom Painters
+// ─────────────────────────────────────────
+
+class _GridPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = const Color(0x06FFFFFF)
+      ..strokeWidth = 0.5;
+
+    const step = 48.0;
+    for (double x = 0; x < size.width; x += step) {
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
+    }
+    for (double y = 0; y < size.height; y += step) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_GridPainter _) => false;
 }
 
-// ── Particle painter ──────────────────────────────────────────────────────────
-class _ParticlePainter extends CustomPainter {
-  final List<_Particle> particles;
-  final double t;
-  _ParticlePainter(this.particles, this.t);
+class _DashedCirclePainter extends CustomPainter {
+  final Color color;
+  final int dashCount;
+
+  const _DashedCirclePainter({required this.color, required this.dashCount});
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()..style = PaintingStyle.fill;
-    for (final p in particles) {
-      final dy = (t * p.speed) % 1.0;
-      final y  = (p.y - dy + 1.0) % 1.0;
-      final opacity = (sin(t * pi * 2 + p.phase) * 0.5 + 0.5) * 0.4 + 0.05;
-      paint.color = const Color(0xFF1E88E5).withOpacity(opacity);
-      canvas.drawCircle(
-        Offset(p.x * size.width, y * size.height),
-        p.radius,
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 1.2
+      ..style = PaintingStyle.stroke;
+
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.width / 2;
+    final dashAngle = (2 * math.pi) / dashCount;
+    final gapFraction = 0.4;
+
+    for (int i = 0; i < dashCount; i++) {
+      final startAngle = i * dashAngle;
+      final sweepAngle = dashAngle * (1 - gapFraction);
+      canvas.drawArc(
+        Rect.fromCircle(center: center, radius: radius),
+        startAngle,
+        sweepAngle,
+        false,
         paint,
       );
     }
   }
 
   @override
-  bool shouldRepaint(_ParticlePainter old) => old.t != t;
+  bool shouldRepaint(_DashedCirclePainter old) =>
+      old.color != color || old.dashCount != dashCount;
 }

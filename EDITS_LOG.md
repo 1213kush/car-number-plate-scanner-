@@ -1,22 +1,24 @@
 # Vehicle OCR App - Edits & Modifications Log
 
 **Date:** 2026-03-29  
-**Task:** Fixed Extra 'A' Artifact Extraction from Number Plates
+**Task:** Resolved App Freeze / Startup Freeze before Splash Screen
 
 ---
 
 ## 📝 Detailed Edits Log
 
-### 1. Indian 2-Letter State Code Matcher Upgrade
-* **File:** [`lib/services/ocr_service.dart`](file:///Users/admin/Documents/Flutter-Projects/vehicle_ocr_app/lib/services/ocr_service.dart)
-* **Problem:** On Indian High-Security Registration Plates (HSRP), ML Kit OCR often detects the blue Ashoka Chakra / IND emblem on the left as a letter `'A'` or `'I'` (e.g. `"A IND DL7CR3815"`). The previous regex `[A-Z]{1,3}` matched `'A'` + `'DL'` = `'ADL'`, resulting in `"ADL7CR3815"`.
-* **Fix:**
-  - Enforced strict **2-letter state code pattern** (`RegExp(r'[A-Z]{2}[0-9]{1,2}[A-Z]{1,3}[0-9]{1,4}')`) as the primary pattern matcher.
-  - Added filter for noise words `IND` / `INDIA`.
-  - Now correctly extracts **`DL7CR3815`** without the extra `'A'` noise.
+### 1. Flutter Binding Initialization
+* **File:** [`lib/main.dart`](file:///Users/admin/Documents/Flutter-Projects/vehicle_ocr_app/lib/main.dart)
+* **Problem:** Missing `WidgetsFlutterBinding.ensureInitialized()`, causing native plugins (SQLite, ML Kit, PathProvider) to freeze or block the main thread on startup before `runApp()`.
+* **Fix:** Added `WidgetsFlutterBinding.ensureInitialized()` in `main()`.
+
+### 2. Lightweight Freeze-Proof Splash Screen
+* **File:** [`lib/screen/splash_screen.dart`](file:///Users/admin/Documents/Flutter-Projects/vehicle_ocr_app/lib/screen/splash_screen.dart)
+* **Problem:** 5 heavy repeating `AnimationController`s with a custom paint loop ticker was causing frame drops and freezing the isolate on app startup.
+* **Fix:** Replaced with a single lightweight, freeze-proof `AnimationController` for logo scale and fade transitions, ensuring 60fps start and smooth navigation to `HomeScreen`.
 
 ---
 
 ## ✅ Verification
 - Executed `flutter analyze`.
-- **Result:** **0 Errors** (Clean Build).
+- **Result:** **No issues found!** (Clean Build).

@@ -57,8 +57,6 @@ class OCRService {
 
     // 1. Structure-Aware Indian Plate Pattern with Auto Disambiguation
     // Group 1: State (2 chars) | Group 2: RTO (1-2 chars) | Group 3: Series (1-3 chars) | Group 4: Number (1-4 chars)
-    final indianStructuredPattern = RegExp(
-        r'([A-Z0-9]{2})([A-Z0-9]{1,2})([A-Z0-9]{1,3})([A-Z0-9]{1,4})');
 
     // Check if cleanedText contains a valid state-code starting pattern
     final indianExactPattern = RegExp(

@@ -543,7 +543,7 @@ class _CircleAction extends StatelessWidget {
             color: bgColor,
             shape: BoxShape.circle,
             border: Border.all(
-              color: color.withOpacity(0.25),
+              color: color.withValues(alpha: 0.25),
               width: 1,
             ),
           ),
